@@ -100,8 +100,8 @@ def waitlist():
 
 # Route to verify the unique code
 @waitlist_bp.route('/waitlist/<unique_code>', methods=['GET'])
-def verify_code(unique_code, incrementVisitCount = True):
-    entry:WaitlistEntry = WaitlistEntry.query.filter_by(unique_code=unique_code).first()
+def verify_code(unique_code, incrementVisitCount=True):
+    entry = WaitlistEntry.query.filter_by(unique_code=unique_code).first()
 
     if entry is None:
         return jsonify({"message": "Invalid code."}), 404
@@ -109,30 +109,26 @@ def verify_code(unique_code, incrementVisitCount = True):
     user_ip = request.remote_addr
     stored_code = session.get('unique_code')
 
-    log.info(entry.unique_code, stored_code)
-    log.info(user_ip, entry.ip_address)
+    log.info(f"Entry Unique Code: {entry.unique_code}, Stored Code: {stored_code}, User IP: {user_ip}, Entry IP: {entry.ip_address}")
+    log.error(f"Entry Unique Code: {entry.unique_code}, Stored Code: {stored_code}, User IP: {user_ip}, Entry IP: {entry.ip_address}")
+    print(f"Entry Unique Code: {entry.unique_code}, Stored Code: {stored_code}, User IP: {user_ip}, Entry IP: {entry.ip_address}")
 
-    if entry.unique_code != stored_code and user_ip != entry.ip_address:
-        if incrementVisitCount:
-            entry.visit_count += 1
-        
-            if entry.visit_count >= 10:
-                entry.in_waitlist = True
-        
-            sqldb.session.commit()
+    # Check if the request is from the same user
+    is_same_user = entry.unique_code == stored_code and user_ip == entry.ip_address
 
-        return {
-            "message": "Code verified",
-            "email": entry.email,
-            "visit_count": entry.visit_count,
-            "sameUser" : False
-        }, 200
-    
+    if not is_same_user and incrementVisitCount:
+        entry.visit_count += 1
+
+        if entry.visit_count >= 10:
+            entry.in_waitlist = True
+        
+        sqldb.session.commit()
+
     return {
         "message": "Code verified",
         "email": entry.email,
         "visit_count": entry.visit_count,
-        "sameUser" : True
+        "sameUser": is_same_user
     }, 200
 
 # Route to get stats for a specific unique code
