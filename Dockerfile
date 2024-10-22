@@ -9,6 +9,7 @@ COPY . /app
 
 # Install any dependencies from requirements.txt
 RUN pip install --no-cache-dir -r req.txt
+RUN python3 dbCreate.py
 
 # Expose the port on which your Flask app will run
 EXPOSE 5000
