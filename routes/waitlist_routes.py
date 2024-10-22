@@ -109,6 +109,9 @@ def verify_code(unique_code, incrementVisitCount = True):
     user_ip = request.remote_addr
     stored_code = session.get('unique_code')
 
+    log.info(entry.unique_code, stored_code)
+    log.info(user_ip, entry.ip_address)
+
     if entry.unique_code != stored_code and user_ip != entry.ip_address:
         if incrementVisitCount:
             entry.visit_count += 1
