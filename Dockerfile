@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir -r req.txt
 EXPOSE 5000
 
 # Run the commands to create the database and start the app
-CMD ["bash", "-c", "python3 dbCreate.py && python3 app.py"]
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]
