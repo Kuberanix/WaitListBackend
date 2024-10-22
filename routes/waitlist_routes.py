@@ -116,7 +116,7 @@ def verify_code(unique_code, incrementVisitCount=True):
     # Check if the request is from the same user
     is_same_user = entry.unique_code == stored_code and user_ip == entry.ip_address
 
-    if not is_same_user and incrementVisitCount:
+    if (not is_same_user) and incrementVisitCount:
         entry.visit_count += 1
 
         if entry.visit_count >= 10:
