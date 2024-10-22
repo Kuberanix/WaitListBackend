@@ -1,4 +1,4 @@
-from flask import request, jsonify, url_for, Blueprint, render_template, session, redirect
+from flask import request, jsonify, Blueprint, session 
 from db import sqldb  # Ensure you import your sqldb instance
 from entity.waitlist import WaitlistEntry
 import logging, random, string, hashlib
