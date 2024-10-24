@@ -4,6 +4,7 @@ from entity.waitlist import WaitlistEntry
 import logging, random, string, hashlib
 import csv, os
 from io import StringIO
+import datetime
 from flask import Response
 
 log = logging.getLogger(__name__)
@@ -11,17 +12,10 @@ log = logging.getLogger(__name__)
 WL_API_KEY = os.getenv("WL_API_KEY")
 
 def get_client_ip():
-    # Check if User-Request-From-IP header exists
     if request.headers.get('user-request-from-ip'):
-        # Use the IP from User-Request-From-IP header
         ip = request.headers.get('user-request-from-ip')
-        log.info(f"User-Request-From-IP: {ip}")
-        log.error(f"User-Request-From-IP: {ip}")
     else:
-        # Fallback to request.remote_addr if no custom header is involved
         ip = request.remote_addr
-        log.info(f"Remote IP: {ip}")
-        log.error(f"Remote IP: {ip}")
     
     return ip
 
@@ -55,9 +49,14 @@ def waitlist():
     if request.method == 'POST':
         referral_code = request.args.get("refferal_code")
         email = request.args.get("email")
+        phone_number = request.args.get("phone_number")
+        message = request.args.get("message")
 
         if not email:
             return jsonify({"message": "Email is missing"}), 400
+        
+        if not phone_number:
+            return jsonify({"message": "Phone number is missing"}), 400
         
         # Check if the email already exists in the waitlist
         existingEntry: WaitlistEntry = WaitlistEntry.query.filter_by(email=email).first() or WaitlistEntry.query.filter_by(ip_address=user_ip).first()
@@ -65,7 +64,8 @@ def waitlist():
             return jsonify({
                 "message": "User already exists.",
                 "email": existingEntry.email,
-                "unique_code": existingEntry.unique_code
+                "unique_code": existingEntry.unique_code,
+                "inWaitList" : existingEntry.in_waitlist
             }), 302
 
         unique_code = str(generate_unique_key(email))
@@ -83,7 +83,9 @@ def waitlist():
             unique_code=unique_code, 
             ip_address=user_ip, 
             email=email, 
-            reffered_by=reffered_by
+            reffered_by=reffered_by,
+            phone_number=phone_number,
+            message=message
         )
         sqldb.session.add(new_entry)
         sqldb.session.commit()
@@ -93,7 +95,8 @@ def waitlist():
         return jsonify({
             "message": "New waitlist entry created",
             "unique_code": unique_code,
-            "email": email
+            "email": email,
+            "inWaitList" : new_entry.in_waitlist
         }), 201
 
     # If the request is GET
@@ -109,7 +112,8 @@ def waitlist():
         return jsonify({
             "email": entry.email,
             "unique_code": entry.unique_code,
-            "visit_count": entry.visit_count
+            "visit_count": entry.visit_count,
+            "inWaitList" : entry.in_waitlist
         }), 200
     
     return jsonify({
@@ -119,7 +123,7 @@ def waitlist():
 # Route to verify the unique code
 @waitlist_bp.route('/waitlist/<unique_code>', methods=['GET'])
 def verify_code(unique_code, incrementVisitCount=True):
-    entry = WaitlistEntry.query.filter_by(unique_code=unique_code).first()
+    entry: WaitlistEntry = WaitlistEntry.query.filter_by(unique_code=unique_code).first()
 
     if entry is None:
         return jsonify({"message": "Invalid code."}), 404
@@ -142,13 +146,14 @@ def verify_code(unique_code, incrementVisitCount=True):
         "message": "Code verified",
         "email": entry.email,
         "visit_count": entry.visit_count,
+        "inWaitList" : entry.in_waitlist,
         "sameUser": is_same_user
     }, 200
 
 # Route to get stats for a specific unique code
 @waitlist_bp.route('/waitlist/stats/<unique_code>', methods=['GET'])
 def get_waitlist_stats(unique_code):
-    entry = WaitlistEntry.query.filter_by(unique_code=unique_code).first()
+    entry:WaitlistEntry = WaitlistEntry.query.filter_by(unique_code=unique_code).first()
 
     if entry is None:
         return jsonify({"message": "Invalid code."}), 404
@@ -158,7 +163,8 @@ def get_waitlist_stats(unique_code):
         "email": entry.email,
         "visit_count": entry.visit_count,
         "created_at": entry.created_at.isoformat(),
-        "ip_address": entry.ip_address
+        "ip_address": entry.ip_address,
+        "inWaitList" : entry.in_waitlist
     }), 200
 
 
@@ -170,26 +176,16 @@ def export_waitlist():
     if not auth_header or auth_header != f"Bearer {WL_API_KEY}":
         return jsonify({"message": "Forbidden: Invalid API Key"}), 403
 
-    # Query all the waitlist entries from the database
     entries = WaitlistEntry.query.all()
 
-    # Create an in-memory file to store the CSV data
     csv_file = StringIO()
     csv_writer = csv.writer(csv_file)
 
-    # Write the header row to the CSV
-    csv_writer.writerow(['unique_code', 'email', 'visit_count', 'created_at', 'ip_address', 'reffered_by'])
+    columns = [column.name for column in WaitlistEntry.__table__.columns]
+    csv_writer.writerow(columns)
 
-    # Write data rows for each entry in the database
     for entry in entries:
-        csv_writer.writerow([
-            entry.unique_code,
-            entry.email,
-            entry.visit_count,
-            entry.created_at.isoformat(),
-            entry.ip_address,
-            entry.reffered_by
-        ])
+        csv_writer.writerow([getattr(entry, column) for column in columns])
 
     # Create a Flask response with the CSV content
     csv_file.seek(0)  # Move the cursor to the start of the file
@@ -197,3 +193,85 @@ def export_waitlist():
     response.headers.set("Content-Disposition", "attachment", filename="waitlist_export.csv")
 
     return response
+
+
+@waitlist_bp.route('/waitlist/import', methods=['POST'])
+def import_waitlist():
+    # Check if the Authorization header is present and matches the expected API key
+    auth_header = request.headers.get('Authorization')
+    
+    if not auth_header or auth_header != f"Bearer {WL_API_KEY}":
+        return jsonify({"message": "Forbidden: Invalid API Key"}), 403
+
+    if 'file' not in request.files:
+        return jsonify({"message": "No file provided"}), 400
+
+    file = request.files['file']
+
+    if not file or not file.filename.endswith('.csv'):
+        return jsonify({"message": "Invalid file format. Please upload a CSV file."}), 400
+
+    # Read the CSV content
+    csv_file = StringIO(file.stream.read().decode('utf-8'))
+    csv_reader = csv.DictReader(csv_file)  # Use DictReader to handle header automatically
+
+    # Get the columns dynamically from the WaitlistEntry model
+    columns = [column.name for column in WaitlistEntry.__table__.columns]
+
+    entries_created = 0
+    for row in csv_reader:
+        # Ensure all required fields are present in the CSV by checking against columns dynamically
+        if not all(key in row for key in columns):
+            return jsonify({"message": "Invalid CSV format: Missing columns"}), 400
+
+        # Extract data dynamically based on column names
+        entry_data = {column: row[column] for column in columns}
+
+        # Parse values as needed, e.g., convert types
+        entry_data['visit_count'] = int(entry_data.get('visit_count', 0))
+        entry_data['in_waitlist'] = entry_data['in_waitlist'].lower() == 'true'
+        entry_data['created_at'] = datetime.fromisoformat(entry_data['created_at']) if 'created_at' in entry_data else None
+        entry_data['reffered_by'] = entry_data['reffered_by'] if entry_data['reffered_by'] != "None" else None
+
+        # Check if the entry already exists
+        existing_entry = WaitlistEntry.query.filter_by(email=entry_data['email']).first()
+        if existing_entry:
+            continue  # Skip if entry already exists
+
+        # Create a new waitlist entry
+        new_entry = WaitlistEntry(**entry_data)
+
+        # Add and commit the new entry to the database
+        sqldb.session.add(new_entry)
+        entries_created += 1
+
+    sqldb.session.commit()
+
+    return jsonify({
+        "message": f"Successfully imported {entries_created} entries into the waitlist."
+    }), 201
+
+
+
+@waitlist_bp.route('/waitlist/clear', methods=['DELETE'])
+def clear_waitlist():
+    # Check if the Authorization header is present and matches the expected API key
+    auth_header = request.headers.get('Authorization')
+
+    if not auth_header or auth_header != f"Bearer {WL_API_KEY}":
+        return jsonify({"message": "Forbidden: Invalid API Key"}), 403
+
+    try:
+        # Delete all entries from the WaitlistEntry table
+        num_rows_deleted = sqldb.session.query(WaitlistEntry).delete()
+
+        # Commit the changes
+        sqldb.session.commit()
+
+        return jsonify({
+            "message": f"Successfully deleted {num_rows_deleted} entries from the waitlist."
+        }), 200
+
+    except Exception as e:
+        sqldb.session.rollback()
+        return jsonify({"message": "Failed to clear waitlist.", "error": str(e)}), 500
