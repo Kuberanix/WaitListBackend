@@ -10,22 +10,19 @@ log = logging.getLogger(__name__)
 
 WL_API_KEY = os.getenv("WL_API_KEY")
 
-def get_client_ip():
-    # Check if the request went through a proxy, e.g., Cloudflare or a load balancer
-    if request.headers.getlist('X-Forwarded-For'):
-        # X-Forwarded-For contains a list of IPs, the first one is the client's real IP
-        ip = request.headers.getlist('X-Forwarded-For')[0]
-        log.info(f"X-Forwarded-For: {ip}")
-        log.error(f"X-Forwarded-For: {ip}")
-        
+def get_client_ip(log):
+    # Check if User-Request-From-IP header exists
+    if request.headers.get('Uuser-request-from-ip'):
+        # Use the IP from User-Request-From-IP header
+        ip = request.headers.get('user-request-from-ip')
+        log.info(f"User-Request-From-IP: {ip}")
+        log.error(f"User-Request-From-IP: {ip}")
     else:
-        # Fallback to get_client_ip() if no proxy is involved
+        # Fallback to request.remote_addr if no custom header is involved
         ip = request.remote_addr
-        log.info(f"Remote: {ip}")
-        log.error(f"Remote: {ip}")
+        log.info(f"Remote IP: {ip}")
+        log.error(f"Remote IP: {ip}")
     
-    log.info(f"Final: {ip}")
-    log.error(f"Final: {ip}")
     return ip
 
 def generate_unique_key(email):
