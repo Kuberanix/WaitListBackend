@@ -15,9 +15,17 @@ def get_client_ip():
     if request.headers.getlist('X-Forwarded-For'):
         # X-Forwarded-For contains a list of IPs, the first one is the client's real IP
         ip = request.headers.getlist('X-Forwarded-For')[0]
+        log.info(f"X-Forwarded-For: {ip}")
+        log.error(f"X-Forwarded-For: {ip}")
+        
     else:
         # Fallback to get_client_ip() if no proxy is involved
         ip = request.remote_addr
+        log.info(f"Remote: {ip}")
+        log.error(f"Remote: {ip}")
+    
+    log.info(f"Final: {ip}")
+    log.error(f"Final: {ip}")
     return ip
 
 def generate_unique_key(email):
