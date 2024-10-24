@@ -100,10 +100,6 @@ def waitlist():
         # Fallback to IP-based lookup if no session is found
         entry = WaitlistEntry.query.filter_by(ip_address=user_ip).first()
 
-    log.info(f"Entry Unique Code: {unique_code},  User IP: {user_ip}, Entry IP: {entry.ip_address}")
-    log.error(f"Entry Unique Code: {unique_code},  User IP: {user_ip}, Entry IP: {entry.ip_address}")
-    print(f"Entry Unique Code: {unique_code}, User IP: {user_ip}, Entry IP: {entry.ip_address}")
-
     if entry:
         return jsonify({
             "email": entry.email,
@@ -112,10 +108,8 @@ def waitlist():
         }), 200
     
     return jsonify({
-            "email": None,
-            "unique_code": None,
-            "visit_count": 0
-        }), 200
+        "message" : "User not registered"
+        }), 404
 
 # Route to verify the unique code
 @waitlist_bp.route('/waitlist/<unique_code>', methods=['GET'])
