@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 
 WL_API_KEY = os.getenv("WL_API_KEY")
 
-def get_client_ip(log):
+def get_client_ip():
     # Check if User-Request-From-IP header exists
     if request.headers.get('Uuser-request-from-ip'):
         # Use the IP from User-Request-From-IP header
