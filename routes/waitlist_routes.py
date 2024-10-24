@@ -10,6 +10,16 @@ log = logging.getLogger(__name__)
 
 WL_API_KEY = os.getenv("WL_API_KEY")
 
+def get_client_ip():
+    # Check if the request went through a proxy, e.g., Cloudflare or a load balancer
+    if request.headers.getlist('X-Forwarded-For'):
+        # X-Forwarded-For contains a list of IPs, the first one is the client's real IP
+        ip = request.headers.getlist('X-Forwarded-For')[0]
+    else:
+        # Fallback to get_client_ip() if no proxy is involved
+        ip = request.remote_addr
+    return ip
+
 def generate_unique_key(email):
     """Generate a unique key starting with 'KYU' based on the email and followed by 1-3 random alphanumeric characters."""
     prefix = "KYU"
@@ -36,7 +46,7 @@ waitlist_bp = Blueprint("waitlist", __name__)
 
 @waitlist_bp.route('/waitlist', methods=['GET', 'POST'])
 def waitlist():
-    user_ip = request.remote_addr
+    user_ip = get_client_ip()
     if request.method == 'POST':
         referral_code = request.args.get("refferal_code")
         email = request.args.get("email")
@@ -115,7 +125,7 @@ def verify_code(unique_code, incrementVisitCount=True):
     if entry is None:
         return jsonify({"message": "Invalid code."}), 404
 
-    user_ip = request.remote_addr
+    user_ip = get_client_ip()
     stored_code = session.get('unique_code')
 
     # Check if the request is from the same user
