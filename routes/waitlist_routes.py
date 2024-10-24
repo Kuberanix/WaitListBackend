@@ -89,7 +89,10 @@ def waitlist():
     else:
         # Fallback to IP-based lookup if no session is found
         entry = WaitlistEntry.query.filter_by(ip_address=user_ip).first()
-    print(user_ip, unique_code)
+
+    log.info(f"Entry Unique Code: {unique_code},  User IP: {user_ip}, Entry IP: {entry.ip_address}")
+    log.error(f"Entry Unique Code: {unique_code},  User IP: {user_ip}, Entry IP: {entry.ip_address}")
+    print(f"Entry Unique Code: {unique_code}, User IP: {user_ip}, Entry IP: {entry.ip_address}")
 
     if entry:
         return jsonify({
