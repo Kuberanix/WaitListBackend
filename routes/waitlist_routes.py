@@ -82,8 +82,14 @@ def waitlist():
         }), 201
 
     # If the request is GET
+    entry:WaitlistEntry = None
     unique_code = session.get('unique_code')
-    entry:WaitlistEntry = WaitlistEntry.query.filter_by(unique_code=unique_code).first() if unique_code else WaitlistEntry.query.filter_by(ip_address=user_ip).first()
+    if unique_code:
+        entry = WaitlistEntry.query.filter_by(unique_code=unique_code).first()
+    else:
+        # Fallback to IP-based lookup if no session is found
+        entry = WaitlistEntry.query.filter_by(ip_address=user_ip).first()
+    print(user_ip, unique_code)
 
     if entry:
         return jsonify({
@@ -108,10 +114,6 @@ def verify_code(unique_code, incrementVisitCount=True):
 
     user_ip = request.remote_addr
     stored_code = session.get('unique_code')
-
-    log.info(f"Entry Unique Code: {entry.unique_code}, Stored Code: {stored_code}, User IP: {user_ip}, Entry IP: {entry.ip_address}")
-    log.error(f"Entry Unique Code: {entry.unique_code}, Stored Code: {stored_code}, User IP: {user_ip}, Entry IP: {entry.ip_address}")
-    print(f"Entry Unique Code: {entry.unique_code}, Stored Code: {stored_code}, User IP: {user_ip}, Entry IP: {entry.ip_address}")
 
     # Check if the request is from the same user
     is_same_user = entry.unique_code == stored_code and user_ip == entry.ip_address
