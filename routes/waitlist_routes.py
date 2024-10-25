@@ -96,7 +96,7 @@ def waitlist():
             return jsonify({"message": "Phone number is missing"}), 400
         
         # Check if the email already exists in the waitlist
-        existingEntry: WaitlistEntry = WaitlistEntry.query.filter_by(email=email).first() or WaitlistEntry.query.filter_by(ip_address=user_ip).first()
+        existingEntry: WaitlistEntry = WaitlistEntry.query.filter_by(email=email).first() or WaitlistEntry.query.filter_by(phone_number=phone_number).first()  or WaitlistEntry.query.filter_by(ip_address=user_ip).first()
         if existingEntry:
             return jsonify({
                 "message": "User already exists.",

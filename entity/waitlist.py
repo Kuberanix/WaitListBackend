@@ -7,7 +7,7 @@ class WaitlistEntry(sqldb.Model):
     id = sqldb.Column(sqldb.Integer, primary_key=True)
     unique_code = sqldb.Column(sqldb.String(36), nullable=False, unique=True)
     email = sqldb.Column(sqldb.String(120), nullable=False, unique=True)
-    phone_number = sqldb.Column(sqldb.String(15), nullable=False) 
+    phone_number = sqldb.Column(sqldb.String(15), nullable=False, unique=True) 
     ip_address = sqldb.Column(sqldb.String(45), nullable=False, unique=True)
     visit_count = sqldb.Column(sqldb.Integer, default=0)
     reffered_by = sqldb.Column(sqldb.String(120))
