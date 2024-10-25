@@ -19,6 +19,9 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 # Load Google credentials from environment variable
 encoded_credentials = os.getenv("GOOGLE_CREDENTIALS_BASE64")
+log.error("encoded_credentials ", encoded_credentials)
+log.error(json.loads(base64.b64decode(encoded_credentials)))
+
 google_credentials = None
 if encoded_credentials:
     google_credentials = json.loads(base64.b64decode(encoded_credentials))
