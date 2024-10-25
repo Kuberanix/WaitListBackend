@@ -6,10 +6,27 @@ import csv, os
 from io import StringIO
 import datetime
 from flask import Response
+import json, base64
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 
 log = logging.getLogger(__name__)
 
 WL_API_KEY = os.getenv("WL_API_KEY")
+
+GOOGLE_SHEET_ID = os.getenv("SHEET_ID")  # Replace with your actual Google Sheet ID
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+
+# Load Google credentials from environment variable
+encoded_credentials = os.getenv("GOOGLE_CREDENTIALS_BASE64")
+google_credentials = None
+if encoded_credentials:
+    google_credentials = json.loads(base64.b64decode(encoded_credentials))
+else:
+    log.error("Null sheets creds")
+
+creds = service_account.Credentials.from_service_account_info(google_credentials, scopes=SCOPES)
+sheets_service = build('sheets', 'v4', credentials=creds)
 
 def get_client_ip():
     if request.headers.get('user-request-from-ip'):
@@ -18,6 +35,25 @@ def get_client_ip():
         ip = request.remote_addr
     
     return ip
+
+def append_to_google_sheet(data):
+    # Define the range to append data
+    range_name = "Sheet1!A1"  # Replace with your sheet's range if different
+
+    # Prepare the data in the format Google Sheets API expects
+    body = {
+        "values": [data]
+    }
+
+    # Append the data to the sheet
+    sheets_service.spreadsheets().values().append(
+        spreadsheetId=GOOGLE_SHEET_ID,
+        range=range_name,
+        valueInputOption="USER_ENTERED",
+        insertDataOption="INSERT_ROWS",
+        body=body
+    ).execute()
+
 
 def generate_unique_key(email):
     """Generate a unique key starting with 'KYU' based on the email and followed by 1-3 random alphanumeric characters."""
@@ -87,8 +123,28 @@ def waitlist():
             phone_number=phone_number,
             message=message
         )
+        
+        try:
+            sheet_data = [
+                new_entry.email,
+                new_entry.phone_number,
+                new_entry.unique_code,
+                new_entry.message,
+                new_entry.ip_address,
+                new_entry.reffered_by,
+                datetime.datetime.now().isoformat()
+            ]
+            append_to_google_sheet(sheet_data)
+
+        except Exception as ex:
+            print(ex)
+            print("Failure in updating sheet for email: " + new_entry.email)
+            log.error("Failure in updating sheet for email: " + new_entry.email)
+        
         sqldb.session.add(new_entry)
         sqldb.session.commit()
+
+
 
         session['unique_code'] = unique_code
 
