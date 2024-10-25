@@ -6,7 +6,7 @@ def create_app():
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///waitlist.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SECRET_KEY'] = os.getenv("APP_SECRET")
+    app.config['SECRET_KEY'] = os.environ.get("APP_SECRET")
 
     init_app(app)
 
