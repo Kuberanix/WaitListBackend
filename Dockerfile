@@ -1,14 +1,18 @@
 # Use an official Python runtime as a parent image
 FROM python:3.12.6
 
-# Set the working directory in the container
+# Set the working directory
 WORKDIR /app
 
-# Copy the current directory contents into the container at /app
+# Copy the requirements file first
+COPY req.txt ./
+
+# Install the dependencies
+RUN pip install --no-cache-dir -r req.txt
+
+# Copy the rest of your application code
 COPY . /app
 
-# Install any dependencies from requirements.txt
-RUN pip install --no-cache-dir -r req.txt
 RUN python3 dbCreate.py
 
 # Expose the port on which your Flask app will run
