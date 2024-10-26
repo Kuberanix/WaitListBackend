@@ -1,1 +1,1 @@
-web: python dbCreate.py && gunicorn -w 3 -b 0.0.0.0:5000 app:create_app() --access-logfile - --error-logfile - --log-level info --access-logformat "%(h)s %(l)s %(u)s %(t)s \"%(r)s\" %(s)s %(b)s \"%(f)s\" \"%(a)s\""
+web: python dbCreate.py && gunicorn -w 3 -b 0.0.0.0:8000 app:create_app() --access-logfile - --error-logfile - --log-level info --access-logformat "%(h)s %(l)s %(u)s %(t)s \"%(r)s\" %(s)s %(b)s \"%(f)s\" \"%(a)s\""
