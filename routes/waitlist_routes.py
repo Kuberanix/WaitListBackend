@@ -336,4 +336,4 @@ def clear_waitlist():
 @waitlist_bp.route('/')
 def home():
     log.info("Home route accessed")
-    return "Hello, World!"
+    return "Hello, World"
