@@ -61,7 +61,7 @@ jobs:
       - name: Unzip artifact for deployment
         run: unzip release.zip
 
-        - name: Create database
+      - name: Create database
         run: |
           python3 dbCreate.py
 
