@@ -5,7 +5,7 @@ FROM python:3.12.6
 WORKDIR /app
 
 # Copy the requirements file first
-COPY req.txt ./
+COPY requirements.txt ./
 
 # Install the dependencies
 RUN pip install --no-cache-dir -r req.txt
