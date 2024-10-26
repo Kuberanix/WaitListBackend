@@ -61,7 +61,14 @@ jobs:
       - name: Unzip artifact for deployment
         run: unzip release.zip
 
-      
+        - name: Create database
+        run: |
+          python3 dbCreate.py
+
+      - name: Start the Flask app
+        run: |
+          nohup python3 app.py
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
