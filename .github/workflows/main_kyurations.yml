@@ -76,6 +76,7 @@ jobs:
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: 'Kyurations'
-          slot-name: 'Production'
+          app-name: 'kyuration'
+          package: .
+          
           
