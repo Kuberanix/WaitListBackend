@@ -332,3 +332,8 @@ def clear_waitlist():
     except Exception as e:
         sqldb.session.rollback()
         return jsonify({"message": "Failed to clear waitlist.", "error": str(e)}), 500
+
+@waitlist_bp.route('/')
+def home():
+    log.info("Home route accessed")
+    return "Hello, World!"
