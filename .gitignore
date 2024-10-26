@@ -2,4 +2,4 @@
 .DS_Store
 venv
 *.db
-*.txt
+encoded_sheets_creds.txt
