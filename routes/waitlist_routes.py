@@ -310,7 +310,7 @@ def import_waitlist():
             entry_data['reffered_by'] = entry_data['reffered_by'] if entry_data['reffered_by'] != "None" else None
 
             # Check if entry already exists
-            if WaitlistEntry.query.filter_by(email=entry_data['email']).first() or WaitlistEntry.query.filter_by(phone_number=entry_data['phone_number']) :
+            if WaitlistEntry.query.filter_by(email=entry_data['email']).first() or WaitlistEntry.query.filter_by(phone_number=entry_data['phone_number']).first():
                 continue  # Skip if entry already exists
 
             # Add new entry
