@@ -29,6 +29,21 @@ else:
 creds = service_account.Credentials.from_service_account_info(google_credentials, scopes=SCOPES)
 sheets_service = build('sheets', 'v4', credentials=creds)
 
+BOT_USER_AGENTS = [
+    'facebookexternalhit',  # Facebook
+    'Twitterbot',           # Twitter
+    'LinkedInBot',          # LinkedIn
+    'Googlebot',            # Google
+    'Bingbot',              # Bing
+    'YandexBot',            # Yandex
+    'Facebot',              # Facebook
+    'ia_archiver',          # Alexa/Wayback Machine
+]
+
+def is_bot(user_agent):
+    """Check if the User-Agent matches a known bot."""
+    return any(bot in user_agent for bot in BOT_USER_AGENTS)
+
 def get_client_ip():
     if request.headers.get('user-request-from-ip'):
         ip = request.headers.get('user-request-from-ip')
@@ -187,11 +202,12 @@ def verify_code(unique_code, incrementVisitCount=True):
 
     user_ip = get_client_ip()
     stored_code = session.get('unique_code')
+    user_agent = request.headers.get('User-Agent', '')
 
     # Check if the request is from the same user
     is_same_user = entry.unique_code == stored_code and user_ip == entry.ip_address
 
-    if (not is_same_user) and incrementVisitCount:
+    if (not is_same_user) and incrementVisitCount and not is_bot(user_agent):
         entry.visit_count += 1
 
         if entry.visit_count >= 5:
@@ -254,55 +270,61 @@ def export_waitlist():
 
 @waitlist_bp.route('/waitlist/import', methods=['POST'])
 def import_waitlist():
-    # Check if the Authorization header is present and matches the expected API key
     auth_header = request.headers.get('Authorization')
     
+    # Check Authorization
     if not auth_header or auth_header != f"Bearer {WL_API_KEY}":
         return jsonify({"message": "Forbidden: Invalid API Key"}), 403
 
+    # Check if file is provided
     if 'file' not in request.files:
         return jsonify({"message": "No file provided"}), 400
 
     file = request.files['file']
-
     if not file or not file.filename.endswith('.csv'):
         return jsonify({"message": "Invalid file format. Please upload a CSV file."}), 400
 
-    # Read the CSV content
-    csv_file = StringIO(file.stream.read().decode('utf-8'))
-    csv_reader = csv.DictReader(csv_file)  # Use DictReader to handle header automatically
+    try:
+        csv_file = StringIO(file.stream.read().decode('utf-8'))
+        csv_reader = csv.DictReader(csv_file)
+        columns = [column.name for column in WaitlistEntry.__table__.columns]
 
-    # Get the columns dynamically from the WaitlistEntry model
-    columns = [column.name for column in WaitlistEntry.__table__.columns]
+        entries_created = 0
+        for row in csv_reader:
+            # Skip empty rows
+            if not row or all(value == "" for value in row.values()):
+                continue
 
-    entries_created = 0
-    for row in csv_reader:
-        # Ensure all required fields are present in the CSV by checking against columns dynamically
-        if not all(key in row for key in columns):
-            return jsonify({"message": "Invalid CSV format: Missing columns"}), 400
+            # Check for required columns
+            if not all(key in row for key in columns):
+                return jsonify({"message": "Invalid CSV format: Missing columns"}), 400
 
-        # Extract data dynamically based on column names
-        entry_data = {column: row[column] for column in columns}
+            # Prepare entry data
+            entry_data = {column: row[column] for column in columns if column in row}
+            entry_data.pop('id', None)
+            entry_data.pop('created_at', None)
 
-        # Parse values as needed, e.g., convert types
-        entry_data['visit_count'] = int(entry_data.get('visit_count', 0))
-        entry_data['in_waitlist'] = entry_data['in_waitlist'].lower() == 'true'
-        entry_data['created_at'] = datetime.fromisoformat(entry_data['created_at']) if 'created_at' in entry_data else None
-        entry_data['reffered_by'] = entry_data['reffered_by'] if entry_data['reffered_by'] != "None" else None
+            # Parse values as needed
+            entry_data['visit_count'] = int(entry_data.get('visit_count', 0))
+            entry_data['in_waitlist'] = entry_data['in_waitlist'].strip().lower() == 'true'
+            entry_data['reffered_by'] = entry_data['reffered_by'] if entry_data['reffered_by'] != "None" else None
 
-        # Check if the entry already exists
-        existing_entry = WaitlistEntry.query.filter_by(email=entry_data['email']).first()
-        if existing_entry:
-            continue  # Skip if entry already exists
+            # Check if entry already exists
+            if WaitlistEntry.query.filter_by(email=entry_data['email']).first() or WaitlistEntry.query.filter_by(phone_number=entry_data['phone_number']) :
+                continue  # Skip if entry already exists
 
-        # Create a new waitlist entry
-        new_entry = WaitlistEntry(**entry_data)
+            # Add new entry
+            new_entry = WaitlistEntry(**entry_data)
+            sqldb.session.add(new_entry)
+            entries_created += 1
 
-        # Add and commit the new entry to the database
-        sqldb.session.add(new_entry)
-        entries_created += 1
+        # Commit once at the end
+        sqldb.session.commit()
 
-    sqldb.session.commit()
+    except Exception as e:
+        # Handle unexpected errors
+        sqldb.session.rollback()
+        return jsonify({"message": "An error occurred during import", "error": str(e)}), 500
 
     return jsonify({
         "message": f"Successfully imported {entries_created} entries into the waitlist."
