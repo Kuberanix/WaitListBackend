@@ -207,7 +207,9 @@ def verify_code(unique_code, incrementVisitCount=True):
     # Check if the request is from the same user
     is_same_user = entry.unique_code == stored_code and user_ip == entry.ip_address
 
-    if (not is_same_user) and incrementVisitCount and not is_bot(user_agent):
+    log.error(unique_code, user_agent, is_bot(user_agent))
+
+    if (not is_same_user) and incrementVisitCount and (not is_bot(user_agent)):
         entry.visit_count += 1
 
         if entry.visit_count >= 5:
