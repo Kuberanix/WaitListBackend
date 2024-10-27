@@ -194,7 +194,7 @@ def verify_code(unique_code, incrementVisitCount=True):
     if (not is_same_user) and incrementVisitCount:
         entry.visit_count += 1
 
-        if entry.visit_count >= 10:
+        if entry.visit_count >= 5:
             entry.in_waitlist = True
         
         sqldb.session.commit()
