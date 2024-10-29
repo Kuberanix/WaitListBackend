@@ -113,6 +113,7 @@ def waitlist():
         # Check if the email already exists in the waitlist
         existingEntry: WaitlistEntry = WaitlistEntry.query.filter_by(email=email).first() or WaitlistEntry.query.filter_by(phone_number=phone_number).first()  or WaitlistEntry.query.filter_by(ip_address=user_ip).first()
         if existingEntry:
+            session['unique_code'] = unique_code
             return jsonify({
                 "message": "User already exists.",
                 "email": existingEntry.email,
@@ -159,8 +160,6 @@ def waitlist():
         
         sqldb.session.add(new_entry)
         sqldb.session.commit()
-
-
 
         session['unique_code'] = unique_code
 
