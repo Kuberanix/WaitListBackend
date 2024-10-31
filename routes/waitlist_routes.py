@@ -362,3 +362,18 @@ def clear_waitlist():
 def home():
     log.info("Home route accessed")
     return "Hello, World"
+
+@waitlist_bp.route('/waitlist/<unique_code>', methods=['DELETE'])
+def delete_waitlist_entry(unique_code):
+    # Find the entry by unique code
+    entry = WaitlistEntry.query.filter_by(unique_code=unique_code).first()
+
+    # If entry is not found, return a 404 response
+    if entry is None:
+        return jsonify({"message": "Entry not found."}), 404
+
+    # Delete the entry from the database
+    sqldb.session.delete(entry)
+    sqldb.session.commit()
+
+    return jsonify({"message": "Entry deleted successfully."}), 200
