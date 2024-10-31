@@ -179,7 +179,7 @@ def waitlist():
     else:
         # Fallback to IP-based lookup if no session is found
         entry = WaitlistEntry.query.filter_by(ip_address=user_ip).first()
-        session[unique_code] = entry.unique_code
+        session['unique_code'] = entry.unique_code
 
     if entry:
         return jsonify({
