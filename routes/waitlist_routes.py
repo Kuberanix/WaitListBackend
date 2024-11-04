@@ -9,6 +9,8 @@ from flask import Response
 import json, base64
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from google.auth.exceptions import TransportError
+import time
 
 log = logging.getLogger(__name__)
 
@@ -53,22 +55,27 @@ def get_client_ip():
     return ip
 
 def append_to_google_sheet(data):
-    # Define the range to append data
-    range_name = "Sheet1!A1"  # Replace with your sheet's range if different
+    range_name = "Sheet1!A1"  # Specify your sheet range here
+    body = {"values": [data]}
+    retries = 3  # Set the number of retry attempts
 
-    # Prepare the data in the format Google Sheets API expects
-    body = {
-        "values": [data]
-    }
-
-    # Append the data to the sheet
-    sheets_service.spreadsheets().values().append(
-        spreadsheetId=GOOGLE_SHEET_ID,
-        range=range_name,
-        valueInputOption="USER_ENTERED",
-        insertDataOption="INSERT_ROWS",
-        body=body
-    ).execute()
+    for attempt in range(retries):
+        try:
+            response = sheets_service.spreadsheets().values().append(
+                spreadsheetId=GOOGLE_SHEET_ID,
+                range=range_name,
+                valueInputOption="USER_ENTERED",
+                insertDataOption="INSERT_ROWS",
+                body=body
+            ).execute()
+            return response  # Exit function on successful response
+        except TransportError as e:
+            if attempt < retries - 1:
+                print(f"Retrying due to error: {e} (Attempt {attempt + 1}/{retries})")
+                time.sleep(2 ** attempt)  # Exponential backoff
+            else:
+                log.error(f"Failed to append data after {retries} attempts: {e}")
+                raise
 
 
 def generate_unique_key(email):
@@ -179,7 +186,8 @@ def waitlist():
     else:
         # Fallback to IP-based lookup if no session is found
         entry = WaitlistEntry.query.filter_by(ip_address=user_ip).first()
-        session['unique_code'] = entry.unique_code
+        if entry:
+            session['unique_code'] = entry.unique_code
 
     if entry:
         return jsonify({
