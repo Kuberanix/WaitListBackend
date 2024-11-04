@@ -184,7 +184,7 @@ def waitlist():
         entry = WaitlistEntry.query.filter_by(unique_code=unique_code).first()
 
         # Check if entry exists before updating
-        if entry:
+        if entry and entry.ip_address!=user_ip:
             entry.ip_address = user_ip
             log.info("Updating IP address for entry with unique_code")
             
