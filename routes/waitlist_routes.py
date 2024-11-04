@@ -180,12 +180,22 @@ def waitlist():
     entry:WaitlistEntry = None
     unique_code = session.get('unique_code')
     if unique_code:
+        # Retrieve the entry with the unique code
         entry = WaitlistEntry.query.filter_by(unique_code=unique_code).first()
-        entry.ip_address = user_ip
-        sqldb.session.commit()
+
+        # Check if entry exists before updating
+        if entry:
+            entry.ip_address = user_ip
+            log.info("Updating IP address for entry with unique_code")
+            
+            # Commit the changes
+            sqldb.session.commit()
+        else:
+            log.warning(f"No WaitlistEntry found for unique_code: {unique_code}")
     else:
         # Fallback to IP-based lookup if no session is found
         entry = WaitlistEntry.query.filter_by(ip_address=user_ip).first()
+        log.error("ip inside")
         if entry:
             session['unique_code'] = entry.unique_code
 
