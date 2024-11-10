@@ -1,16 +1,25 @@
-from flask import request, jsonify, Blueprint, session 
-from db import sqldb  # Ensure you import your sqldb instance
-from entity.waitlist import WaitlistEntry
-import logging, random, string, hashlib
-import csv, os
-from io import StringIO
+import base64
+import csv
 import datetime
-from flask import Response
-import json, base64
+import hashlib
+import json
+import logging
+import os
+import random
+import ssl
+import string
+import time
+from io import StringIO
+
+import requests
+from flask import Blueprint, Response, jsonify, request, session
+from google.auth.exceptions import TransportError
+from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from google.auth.exceptions import TransportError
-import time
+
+from db import sqldb  # Ensure you import your sqldb instance
+from entity.waitlist import WaitlistEntry
 
 log = logging.getLogger(__name__)
 
@@ -29,6 +38,14 @@ else:
     log.error("Null sheets creds")
 
 creds = service_account.Credentials.from_service_account_info(google_credentials, scopes=SCOPES)
+
+# Create the AuthorizedSession instance
+authed_session = AuthorizedSession(creds)
+
+# Disable SSL verification by accessing the underlying session
+authed_session.verify = False  # Disable SSL verification
+
+# Build the Sheets API client using the authed session
 sheets_service = build('sheets', 'v4', credentials=creds)
 
 BOT_USER_AGENTS = [
@@ -69,7 +86,7 @@ def append_to_google_sheet(data):
                 body=body
             ).execute()
             return response  # Exit function on successful response
-        except TransportError as e:
+        except Exception as e:
             if attempt < retries - 1:
                 print(f"Retrying due to error: {e} (Attempt {attempt + 1}/{retries})")
                 time.sleep(2 ** attempt)  # Exponential backoff
